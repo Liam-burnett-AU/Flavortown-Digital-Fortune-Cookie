@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en-au">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Digital Fortune Cookie</title>
+
+<style>
+:root{
+  --bg:#0f1220;
+  --card:rgba(255,255,255,0.05);
+  --border:rgba(255,255,255,0.12);
+  --text:#f2f4ff;
+  --muted:rgba(255,255,255,0.65);
+  --muted2:rgba(255,255,255,0.45);
+  --accent:#ffd36e;
+  --accent2:#7cf1c7;
+
+  --hc-muted:rgba(255,255,255,0.55);
+  --hc-red:#ff6b6b;
+  --transition-fast:140ms ease;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  background:radial-gradient(1200px 700px at 20% 10%, #1f2450, var(--bg));
+  color:var(--text);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+}
+
+.wrap{
+  width:min(980px,92vw);
+  padding:32px 0;
+}
+
+h1{
+  margin:0 0 8px;
+  font-size:clamp(2rem,3.4vw,3rem);
+  letter-spacing:.2px;
+}
+
+h2{margin:0 0 10px;font-size:1.35rem}
+h3{margin:0 0 10px;font-size:1.15rem}
+
+.sub{
+  margin:0 0 18px;
+  color:var(--muted);
+  line-height:1.5;
+}
+
+.back-link{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:var(--hc-muted);
+  text-decoration:none;
+  font-weight:600;
+  margin-bottom:24px;
+  transition:color var(--transition-fast), transform var(--transition-fast);
+}
+
+.back-link:hover{
+  color:var(--hc-red);
+  transform:translateX(-2px);
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:18px;
+  backdrop-filter:blur(10px);
+  box-shadow:0 18px 60px rgba(0,0,0,.35);
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(64px,1fr));
+  gap:10px;
+  margin-top:12px;
+}
+
+.emojiBtn{
+  font-size:28px;
+  padding:14px 0;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:rgba(0,0,0,0.25);
+  color:var(--text);
+  cursor:pointer;
+  transition:transform 120ms ease, border-color 120ms ease, filter 120ms ease;
+}
+
+.emojiBtn:hover{
+  transform:translateY(-2px);
+  border-color:rgba(255,211,110,.6);
+  filter:brightness(1.05);
+}
+
+.emojiBtn.selected{
+  outline:2px solid rgba(124,241,199,.85);
+  border-color:rgba(124,241,199,.45);
+}
+
+.chosen{
+  margin-top:16px;
+  color:var(--muted);
+  display:grid;
+  gap:10px;
+}
+
+.row{
+  display:flex;
+  gap:10px;
+  min-height:44px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.pill{
+  background:rgba(255,255,255,.07);
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:20px;
+}
+
+.btn{
+  margin-top:14px;
+  width:100%;
+  padding:14px 16px;
+  border-radius:14px;
+  border:none;
+  font-weight:800;
+  cursor:pointer;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  color:#121426;
+  transition:transform 120ms ease, filter 120ms ease;
+}
+
+.btn:hover{transform:translateY(-1px);filter:brightness(1.02)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:none}
+
+.ghost{
+  background:transparent;
+  border:1px solid rgba(255,255,255,.18);
+  color:var(--text);
+}
+
+.result{
+  margin-top:18px;
+  padding:18px;
+  border-radius:18px;
+  border:1px solid var(--border);
+  background:rgba(0,0,0,.20);
+  box-shadow:0 18px 60px rgba(0,0,0,.35);
+}
+
+.hidden{display:none}
+
+.cookieStage{
+  display:grid;
+  place-items:center;
+  margin-bottom:8px;
+}
+
+.cookie{
+  position:relative;
+  height:86px;
+  width:160px;
+  display:grid;
+  place-items:center;
+  filter:drop-shadow(0 10px 18px rgba(0,0,0,.35));
+}
+
+.cookie .half{
+  position:absolute;
+  font-size:64px;
+  line-height:1;
+  transform:translateX(0) rotate(0deg) scale(1);
+  transition:transform 520ms cubic-bezier(.2,.9,.2,1), filter 520ms ease, opacity 220ms ease;
+}
+
+.cookie .left{transform-origin:70% 60%}
+.cookie .right{transform-origin:30% 60%}
+
+.cookie .spark{
+  position:absolute;
+  width:10px;
+  height:70px;
+  border-radius:999px;
+  opacity:0;
+  background:rgba(255,255,255,0);
+  box-shadow:0 0 0 rgba(255,255,255,0);
+}
+
+.cookie.shake .half{
+  animation:cookieShake 520ms ease-in-out 1;
+}
+
+@keyframes cookieShake{
+  0%{transform:translateX(0) rotate(0deg) scale(1)}
+  20%{transform:translateX(-3px) rotate(-7deg) scale(1.02)}
+  40%{transform:translateX(3px) rotate(7deg) scale(1.02)}
+  60%{transform:translateX(-3px) rotate(-6deg) scale(1.02)}
+  80%{transform:translateX(3px) rotate(6deg) scale(1.02)}
+  100%{transform:translateX(0) rotate(0deg) scale(1)}
+}
+
+.cookie.cracked .left{transform:translateX(-28px) rotate(-18deg) scale(.98);filter:brightness(1.05)}
+.cookie.cracked .right{transform:translateX(28px) rotate(18deg) scale(.98);filter:brightness(1.05)}
+.cookie.cracked .spark{
+  opacity:1;
+  animation:flash 520ms ease-out 1;
+}
+
+@keyframes flash{
+  0%{opacity:0;transform:scaleY(.6);background:rgba(255,255,255,0);box-shadow:0 0 0 rgba(255,255,255,0)}
+  30%{opacity:1;transform:scaleY(1);background:rgba(255,255,255,.55);box-shadow:0 0 26px rgba(255,255,255,.35)}
+  100%{opacity:0;transform:scaleY(.7);background:rgba(255,255,255,0);box-shadow:0 0 0 rgba(255,255,255,0)}
+}
+
+.slip{
+  margin-top:-6px;
+  display:grid;
+  place-items:center;
+  opacity:0;
+  transform:translateY(-6px);
+  transition:opacity 260ms ease, transform 260ms ease;
+}
+
+.slip.show{
+  opacity:1;
+  transform:translateY(0);
+}
+
+.slip .paper{
+  padding:8px 12px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.08);
+  color:rgba(255,255,255,.85);
+  font-weight:700;
+  font-size:.95rem;
+}
+
+.meta{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:10px 0 12px;
+}
+
+.rarity,.vibe{
+  display:inline-flex;
+  align-items:center;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(255,255,255,.06);
+  color:var(--muted);
+  font-weight:800;
+  font-size:.95rem;
+}
+
+.fortune{
+  font-size:1.15rem;
+  line-height:1.65;
+  margin:10px 0 0;
+}
+
+.roast{
+  margin:10px 0 0;
+  color:rgba(255,255,255,.72);
+  font-style:italic;
+  line-height:1.55;
+}
+
+.soft{
+  margin:12px 0 0;
+  color:var(--muted2);
+  font-size:.95rem;
+}
+
+.actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:14px;
+}
+
+.history{
+  margin-top:18px;
+}
+
+.historyList{
+  list-style:none;
+  padding:0;
+  margin:10px 0 0;
+  display:grid;
+  gap:10px;
+}
+
+.historyList li{
+  padding:12px 12px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.05);
+  color:rgba(255,255,255,.78);
+  line-height:1.45;
+}
+
+.foot{
+  margin-top:18px;
+  color:rgba(255,255,255,.45);
+  font-size:.95rem;
+}
+
+@media (max-width:560px){
+  .actions{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+<main class="wrap">
+
+  <a href="../events/Flavortown.html" class="back-link">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5M12 19l-7-7 7-7"/>
+    </svg>
+    Back
+  </a>
+
+  <h1>🥠 Digital Fortune Cookie</h1>
+  <p id="subtitle" class="sub"></p>
+
+  <section class="card">
+    <h2>Choose your emojis</h2>
+    <p class="sub">Pick 3 emojis, then crack the cookie.</p>
+
+    <div id="emojiGrid" class="grid" aria-label="Emoji choices"></div>
+
+    <div class="chosen">
+      <strong>Chosen</strong>
+      <div id="chosenRow" class="row"></div>
+    </div>
+
+    <button id="crackBtn" class="btn" disabled>Crack the cookie</button>
+  </section>
+
+  <section id="result" class="result hidden" aria-live="polite">
+    <div class="cookieStage">
+      <div class="cookie" id="cookieIcon" aria-label="Fortune cookie">
+        <span class="half left">🥠</span>
+        <span class="half right">🥠</span>
+        <span class="spark" aria-hidden="true"></span>
+      </div>
+
+      <div class="slip" id="slip">
+        <div class="paper" id="slipText">fortune incoming</div>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div id="rarityLine" class="rarity"></div>
+      <div id="vibeLine" class="vibe"></div>
+    </div>
+
+    <h2>Your fortune</h2>
+    <p id="fortuneText" class="fortune"></p>
+    <p id="roastText" class="roast"></p>
+    <p class="soft">Take it seriously. Or don’t. I’m a cookie.</p>
+
+    <div class="actions">
+      <button id="shareBtn" class="btn ghost">Share fortune</button>
+      <button id="againBtn" class="btn ghost">Another one</button>
+    </div>
+  </section>
+
+  <section class="history card">
+    <h3>Previous mistakes</h3>
+    <ul id="historyList" class="historyList"></ul>
+  </section>
+
+  <footer class="foot">Built for Hack Club Flavortown</footer>
+</main>
+
+<script>
+const EMOJIS = [
+  { e:"🌪️", vibe:"chaos" }, { e:"🎲", vibe:"chaos" }, { e:"🧨", vibe:"chaos" }, { e:"🕳️", vibe:"chaos" }, { e:"🪩", vibe:"chaos" },
+  { e:"🧸", vibe:"cosy" }, { e:"🧁", vibe:"cosy" }, { e:"🪴", vibe:"cosy" }, { e:"🫧", vibe:"cosy" }, { e:"🧺", vibe:"cosy" },
+  { e:"🧠", vibe:"focus" }, { e:"🧩", vibe:"focus" }, { e:"📎", vibe:"focus" }, { e:"🧲", vibe:"focus" }, { e:"🛰️", vibe:"focus" },
+  { e:"💤", vibe:"sleepy" }, { e:"🧊", vibe:"sleepy" }, { e:"🧼", vibe:"sleepy" }, { e:"🪞", vibe:"sleepy" }, { e:"🧽", vibe:"sleepy" },
+  { e:"🍕", vibe:"snack" }, { e:"🧃", vibe:"snack" }, { e:"🦐", vibe:"snack" }, { e:"🛒", vibe:"snack" }, { e:"🪙", vibe:"snack" }
+];
+
+const vibeLines = {
+  chaos:"You are currently sponsored by spontaneous energy.",
+  cosy:"Soft moments are productive too. Let them happen.",
+  focus:"Your brain wants a checklist and a dramatic soundtrack.",
+  sleepy:"Rest is not laziness. It is maintenance.",
+  snack:"Eat something real before you attempt to solve reality."
+};
+
+const subtitles = [
+  "Advice not legally binding.",
+  "I have no qualifications.",
+  "This cookie knows too much.",
+  "Built on vibes and bad decisions.",
+  "Emotionally accurate, scientifically questionable."
+];
+
+const roasts = [
+  "You absolutely picked those emojis on purpose.",
+  "This was influenced by poor sleep, be honest.",
+  "You expected chaos and you received it.",
+  "This fortune knows things it should not.",
+  "You thought this would be funny. You were correct."
+];
+
+const rarityLabels = {
+  Common:"Common Fortune",
+  Uncommon:"Uncommon Fortune",
+  Rare:"✨ Rare Fortune ✨",
+  Cursed:"⚠️ Cursed Wisdom ⚠️",
+  Legendary:"🌟 Legendary Fortune 🌟"
+};
+
+const chosen = [];
+let lastGenerated = null;
+
+const emojiGrid = document.getElementById("emojiGrid");
+const chosenRow = document.getElementById("chosenRow");
+const crackBtn = document.getElementById("crackBtn");
+const againBtn = document.getElementById("againBtn");
+const shareBtn = document.getElementById("shareBtn");
+
+const result = document.getElementById("result");
+const cookieIcon = document.getElementById("cookieIcon");
+const slip = document.getElementById("slip");
+const slipText = document.getElementById("slipText");
+
+const rarityLine = document.getElementById("rarityLine");
+const vibeLine = document.getElementById("vibeLine");
+const fortuneText = document.getElementById("fortuneText");
+const roastText = document.getElementById("roastText");
+
+const historyList = document.getElementById("historyList");
+document.getElementById("subtitle").textContent = subtitles[Math.floor(Math.random() * subtitles.length)];
+
+function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+function seedFromEmojis(arr){
+  let seed = 0;
+  for(const e of arr){
+    for(const ch of e) seed = (seed * 31 + ch.codePointAt(0)) >>> 0;
+  }
+  return seed;
+}
+
+function rand(seedObj){
+  seedObj.value = (seedObj.value * 1664525 + 1013904223) >>> 0;
+  return seedObj.value / 4294967296;
+}
+
+function rollRarity(){
+  const roll = Math.random();
+  if(roll < 0.55) return "Common";
+  if(roll < 0.8) return "Uncommon";
+  if(roll < 0.93) return "Rare";
+  if(roll < 0.985) return "Cursed";
+  return "Legendary";
+}
+
+function getMainVibe(emojisPicked){
+  const counts = {};
+  for(const emo of emojisPicked){
+    const found = EMOJIS.find(x => x.e === emo);
+    const vibe = found ? found.vibe : "chaos";
+    counts[vibe] = (counts[vibe] || 0) + 1;
+  }
+  return Object.keys(counts).sort((a,b) => counts[b] - counts[a])[0] || "chaos";
+}
+
+function buildFortune(emojisPicked, mainVibe){
+  const seedObj = { value: seedFromEmojis(emojisPicked) };
+
+  const openings = [
+    "Your future arrives wearing socks on its hands.",
+    "A wise pigeon has selected you as its intern.",
+    "The universe has sent a memo, it is mostly glitter.",
+    "Today you are the main character of a very niche documentary.",
+    "A door will open. It is probably a fridge.",
+    "A suspiciously confident duck believes in you."
+  ];
+
+  const actions = [
+    "Say yes to the weird plan, but bring a charger.",
+    "Avoid decisions made while standing in a supermarket aisle.",
+    "If you feel stuck, rotate the problem 90 degrees and try again.",
+    "Outsmart your doom scroll by drinking water like it is a side quest.",
+    "Ask for help earlier than you think you should.",
+    "Make something small and ship it anyway.",
+    "Do the simplest version first, then add sparkle."
+  ];
+
+  const twists = [
+    "You will find clarity in a place that smells faintly of toast.",
+    "A rubber duck will judge you, kindly.",
+    "Your next good idea will arrive mid shower. Respect it.",
+    "Someone will offer advice. Accept it only if they own at least one plant.",
+    "The villain is not you. It is your notification settings.",
+    "Your future self is quietly cheering in the background."
+  ];
+
+  const closings = [
+    "Lucky object: a slightly heroic paperclip.",
+    "Lucky number: 7.5, do not ask why.",
+    "Lucky colour: whatever colour your brain is today.",
+    "Lucky move: take the stairs like you are in a training montage.",
+    "Lucky snack: something crunchy that sounds like a tiny drum."
+  ];
+
+  const seededPick = (arr) => arr[Math.floor(rand(seedObj) * arr.length)];
+
+  return [
+    seededPick(openings),
+    vibeLines[mainVibe] || vibeLines.chaos,
+    seededPick(actions),
+    seededPick(twists),
+    seededPick(closings)
+  ].join(" ");
+}
+
+function renderChosen(){
+  chosenRow.innerHTML = "";
+  for(const e of chosen){
+    const pill = document.createElement("div");
+    pill.className = "pill";
+    pill.textContent = e;
+    chosenRow.appendChild(pill);
+  }
+  crackBtn.disabled = chosen.length !== 3;
+}
+
+function toggleEmoji(btn, emoji){
+  const idx = chosen.indexOf(emoji);
+  if(idx !== -1){
+    chosen.splice(idx, 1);
+    btn.classList.remove("selected");
+  } else {
+    if(chosen.length >= 3) return;
+    chosen.push(emoji);
+    btn.classList.add("selected");
+  }
+  renderChosen();
+}
+
+function buildGrid(){
+  emojiGrid.innerHTML = "";
+  EMOJIS.forEach(({ e }) => {
+    const btn = document.createElement("button");
+    btn.className = "emojiBtn";
+    btn.type = "button";
+    btn.textContent = e;
+    btn.addEventListener("click", () => toggleEmoji(btn, e));
+    emojiGrid.appendChild(btn);
+  });
+}
+
+function saveHistory(entry){
+  const history = JSON.parse(localStorage.getItem("fortunes") || "[]");
+  history.unshift(entry);
+  localStorage.setItem("fortunes", JSON.stringify(history.slice(0, 5)));
+  renderHistory();
+}
+
+function renderHistory(){
+  const history = JSON.parse(localStorage.getItem("fortunes") || "[]");
+  historyList.innerHTML = "";
+
+  if(history.length === 0){
+    const li = document.createElement("li");
+    li.textContent = "No previous mistakes yet. Be brave.";
+    historyList.appendChild(li);
+    return;
+  }
+
+  for(const f of history){
+    const li = document.createElement("li");
+    const preview = (f.text || "").slice(0, 90);
+    li.textContent = `${f.rarity} • ${preview}${(f.text || "").length > 90 ? "…" : ""}`;
+    historyList.appendChild(li);
+  }
+}
+
+function resetRun(){
+  chosen.length = 0;
+  lastGenerated = null;
+
+  document.querySelectorAll(".emojiBtn.selected").forEach(b => b.classList.remove("selected"));
+  renderChosen();
+
+  result.classList.add("hidden");
+  cookieIcon.classList.remove("shake","cracked");
+  slip.classList.remove("show");
+
+  rarityLine.textContent = "";
+  vibeLine.textContent = "";
+  fortuneText.textContent = "";
+  roastText.textContent = "";
+}
+
+function showFortune(){
+  const rarity = rollRarity();
+  const roast = pick(roasts);
+  const mainVibe = getMainVibe(chosen);
+  const fortune = buildFortune(chosen, mainVibe);
+
+  lastGenerated = { emojis:[...chosen], rarity, vibe:mainVibe, text:fortune, roast };
+
+  slipText.textContent = "fortune unlocked";
+  slip.classList.add("show");
+
+  rarityLine.textContent = rarityLabels[rarity] || rarity;
+  vibeLine.textContent = `Vibe detected: ${mainVibe}`;
+  fortuneText.textContent = fortune;
+  roastText.textContent = roast;
+
+  saveHistory({ rarity, vibe: mainVibe, text: fortune, time: Date.now() });
+
+  result.scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+crackBtn.addEventListener("click", () => {
+  if(chosen.length !== 3) return;
+
+  result.classList.remove("hidden");
+  slip.classList.remove("show");
+
+  cookieIcon.classList.remove("shake","cracked");
+  void cookieIcon.offsetWidth;
+
+  cookieIcon.classList.add("shake");
+
+  setTimeout(() => {
+    cookieIcon.classList.remove("shake");
+    cookieIcon.classList.add("cracked");
+  }, 520);
+
+  setTimeout(() => {
+    showFortune();
+  }, 980);
+});
+
+againBtn.addEventListener("click", resetRun);
+
+shareBtn.addEventListener("click", async () => {
+  if(!lastGenerated) return;
+
+  const shareText =
+`🥠 Digital Fortune Cookie\nEmojis: ${lastGenerated.emojis.join(" ")}\n${rarityLabels[lastGenerated.rarity] || lastGenerated.rarity}\n"${lastGenerated.text}"\n"${lastGenerated.roast}"`;
+
+  try{
+    await navigator.clipboard.writeText(shareText);
+    alert("Fortune copied. Go cause chaos.");
+  } catch(e){
+    alert("Could not copy. Your browser is being shy.");
+  }
+});
+
+buildGrid();
+renderChosen();
+renderHistory();
+</script>
+</body>
+</html>
